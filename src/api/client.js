@@ -5,7 +5,7 @@
 
 // 后端地址。开发期前端 5173、后端 8000，是两个服务，所以要写全地址。
 // 部署时把这里改成后端域名即可（一个常量，方便切换）。
-export const API_BASE = 'http://localhost:8000'
+export const API_BASE = 'http://127.0.0.1:8000'
 
 /**
  * 从浏览器本地存储读取 token。
@@ -56,8 +56,11 @@ export async function request(path, options = {}) {
       body: body !== undefined ? JSON.stringify(body) : undefined,
     })
   } catch (e) {
-    // fetch 抛错通常是网络问题：后端没启动、地址写错、跨域被拒
-    throw new Error('无法连接服务器，请确认后端已启动（端口 8000）')
+    // fetch 抛错 = 真正的网络层失败：后端没启动、地址写错、跨域被拒
+    // 注意：后端返回 500 不会走到这里（那是 response.ok=false 的分支），
+    // 所以这句只表示"连不上"，不是"服务器内部报错"
+    console.error('网络请求失败：', e)
+    throw new Error('无法连接服务器：请确认后端已启动（端口 8000）')
   }
 
   // 204 表示删除成功、没有返回内容
@@ -79,7 +82,12 @@ export async function request(path, options = {}) {
       clearToken()
     }
     // 后端 FastAPI 的错误信息在 detail 字段里
+    // 注意：500 是服务器内部错误（如数据库字段太短、代码 bug），
+    // 必须和"连不上"区分开，否则排查方向完全错误
     const message = data?.detail || `请求失败（${response.status}）`
+    if (response.status === 500) {
+      throw new Error(`服务器处理失败（500）：${message}。若含图片，可能是图片过大。`)
+    }
     throw new Error(typeof message === 'string' ? message : '请求参数有误')
   }
 

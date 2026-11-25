@@ -51,7 +51,7 @@ class Event(Base):
     description = Column(Text, default="")
     people = Column(String(50), default="A")      # 'A' / 'B' / 'AB'
     tags = Column(Text, default="[]")             # JSON 字符串，如 ["开端","名场面"]
-    image_url = Column(String(500), default="")
+    image_url = Column(Text, default="")  # 图片转 base64 后很大，用 Text 而非 String(500)
     sort_order = Column(Integer, default=0)
 
     # 关系：事件属于一条故事线

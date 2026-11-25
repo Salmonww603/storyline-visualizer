@@ -49,11 +49,14 @@
       </div>
 
       <!-- 配图 -->
-      <div class="field">
+      <div class="field image-field">
         <label>配图：</label>
-        <input type="file" accept="image/*" @change="handleImage" />
+        <input ref="fileInput" type="file" accept="image/*" @change="handleImage" />
         <input v-model="form.imageUrl" type="text" placeholder="或粘贴图片 URL" />
-        <img v-if="form.imageUrl" :src="form.imageUrl" class="preview" alt="预览" />
+        <button v-if="form.imageUrl" type="button" class="remove-image" @click="removeImage">移除图片</button>
+        <div v-if="form.imageUrl" class="preview-wrap">
+          <img :src="form.imageUrl" class="preview" alt="预览" />
+        </div>
         <p v-if="imageHint" class="hint">{{ imageHint }}</p>
       </div>
 
@@ -84,6 +87,7 @@ const store = useStorylines()
 const editingId = ref(null)
 const error = ref('')
 const imageHint = ref('')
+const fileInput = ref(null)   // 文件选择框的引用，用于清空已选文件
 const peopleMode = ref('AB')       // 默认两人互动
 const tagsInput = ref('')
 
@@ -133,6 +137,15 @@ function handleImage(event) {
   reader.readAsDataURL(file)
 }
 
+// 移除图片：清空图片数据 + 文件选择框（两处都要清，否则状态不一致）
+function removeImage() {
+  form.imageUrl = ''
+  imageHint.value = ''
+  if (fileInput.value) {
+    fileInput.value.value = ''
+  }
+}
+
 // 进入编辑模式：把事件数据填进表单
 function startEdit(event) {
   editingId.value = event.id
@@ -143,6 +156,8 @@ function startEdit(event) {
   peopleMode.value = arrayToPeople(event.people)
   tagsInput.value = event.tags.join(', ')
   error.value = ''
+  imageHint.value = ''
+  if (fileInput.value) fileInput.value.value = ''   // 清掉上一次选的文件
 }
 
 // 保存（新建或更新）
@@ -197,6 +212,7 @@ function resetForm() {
   tagsInput.value = ''
   error.value = ''
   imageHint.value = ''
+  if (fileInput.value) fileInput.value.value = ''
 }
 </script>
 
@@ -331,6 +347,21 @@ textarea {
   align-items: center;
   gap: 4px;
   cursor: pointer;
+}
+.image-field {
+  align-items: flex-start;
+}
+.image-field input[type="file"] {
+  min-width: 0;
+  max-width: 100%;
+}
+.remove-image {
+  background: #f56c6c;
+  border-color: #f56c6c;
+  padding: 6px 10px;
+}
+.preview-wrap {
+  flex-basis: 100%;
 }
 .preview {
   width: 80px;
