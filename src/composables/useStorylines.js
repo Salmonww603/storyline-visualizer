@@ -1,139 +1,172 @@
 import { ref } from 'vue'
+import { storylineApi, eventApi } from '../api/client.js'
+import {
+  storylineFromApi, storylineToApi, eventToApi,
+} from '../api/adapter.js'
 
-// 故事线数据仓库：集中管理所有故事线的增删改查
-// 用 ref 包裹数组，这样 Vue 能监听变化并自动更新页面
+/**
+ * 故事线数据仓库（V2 版）：数据从后端 API 读写，不再存浏览器本地。
+ *
+ * 对外暴露的方法和 V1 完全一样（load/create/update/remove/addEvent...），
+ * 所以 StorylineManager、EventEditor 这些组件几乎不用改。
+ * 区别只是每个方法内部从"操作 localStorage"变成"发 HTTP 请求"——
+ * 这就是把数据层单独抽出来的价值。
+ *
+ * 注意：所有方法都是 async（因为网络请求是异步的）。
+ */
 
-const storylines = ref([])
-const currentId = ref(null) // 当前选中的故事线 id
-let nextId = 1              // 自增 id 生成器
+const storylines = ref([])      // 我的故事线列表（含 events）
+const currentId = ref(null)     // 当前选中的故事线 id
+const loading = ref(false)
+const error = ref('')
 
-// 加载：从 localStorage 读取数据（第5步会用到，这里先留好接口）
-function load() {
-  const saved = localStorage.getItem('storylines')
-  if (saved) {
-    storylines.value = JSON.parse(saved)
-    // 兼容老数据：早期创建的故事线没有 personA/personB，补空字符串
-    storylines.value.forEach(s => {
-      if (s.personA === undefined) s.personA = ''
-      if (s.personB === undefined) s.personB = ''
-    })
-    // 恢复时 nextId 要跳过已用过的最大值，避免 id 重复
-    nextId = Math.max(0, ...storylines.value.map(s => s.id)) + 1
+/** 从后端加载"我的故事线"，每条再单独拉详情（含事件） */
+async function load() {
+  loading.value = true
+  error.value = ''
+  try {
+    const summaries = await storylineApi.mine()
+    // 列表接口是精简版（不含事件），逐条拉详情拿完整事件
+    // 并发请求：Promise.all 比 for 循环逐个 await 快得多
+    const detailed = await Promise.all(
+      summaries.map(s => storylineApi.detail(s.id))
+    )
+    storylines.value = detailed.map(storylineFromApi)
     if (storylines.value.length > 0) {
-      currentId.value = storylines.value[0].id
+      // 尽量保持原来的选中项；没有就选第一条
+      const stillExists = storylines.value.some(s => s.id === currentId.value)
+      currentId.value = stillExists ? currentId.value : storylines.value[0].id
+    } else {
+      currentId.value = null
     }
+  } catch (e) {
+    error.value = e.message
+  } finally {
+    loading.value = false
   }
 }
 
-// 保存：把当前数据写回 localStorage
-function save() {
-  localStorage.setItem('storylines', JSON.stringify(storylines.value))
-}
-
-// 创建一条新故事线（含 A、B 两位主角的名字）
-function create(title, description = '', personA = '', personB = '') {
-  const item = {
-    id: nextId++,
-    title,
-    description,
-    personA,   // 主角 A 的名字
-    personB,   // 主角 B 的名字
-    events: [],
+/** 创建故事线 */
+async function create(title, description = '', personA = '', personB = '') {
+  error.value = ''
+  try {
+    const data = storylineToApi({ title, description, personA, personB, isPublic: false })
+    const created = await storylineApi.create(data)
+    const item = storylineFromApi(created)
+    storylines.value.push(item)
+    currentId.value = item.id
+    return item
+  } catch (e) {
+    error.value = e.message
+    throw e
   }
-  storylines.value.push(item)
-  currentId.value = item.id
-  save()
-  return item
 }
 
-// 根据 id 查找故事线
+/** 根据 id 查找（本地缓存里找） */
 function getById(id) {
   return storylines.value.find(s => s.id === id)
 }
 
-// 当前选中的故事线
+/** 当前选中的故事线 */
 function current() {
   return getById(currentId.value)
 }
 
-// 切换到某条故事线
+/** 切换选中的故事线 */
 function select(id) {
   currentId.value = id
 }
 
-// 更新故事线（标题、简介、A/B 名字）
-function update(id, title, description, personA, personB) {
-  const item = getById(id)
-  if (item) {
-    item.title = title
-    item.description = description
-    item.personA = personA
-    item.personB = personB
-    save()
+/** 更新故事线（标题/简介/A B 名字/公开状态） */
+async function update(id, fields) {
+  error.value = ''
+  try {
+    const data = storylineToApi(fields)
+    const updated = await storylineApi.update(id, data)
+    const index = storylines.value.findIndex(s => s.id === id)
+    if (index !== -1) {
+      storylines.value[index] = storylineFromApi(updated)
+    }
+  } catch (e) {
+    error.value = e.message
+    throw e
   }
 }
 
-// 删除故事线（同时处理：删的是当前选中的怎么办）
-function remove(id) {
-  storylines.value = storylines.value.filter(s => s.id !== id)
-  if (currentId.value === id) {
-    // 如果删的是当前选中的，自动切到第一条；没有就置空
-    currentId.value = storylines.value.length > 0 ? storylines.value[0].id : null
+/** 删除故事线 */
+async function remove(id) {
+  error.value = ''
+  try {
+    await storylineApi.remove(id)
+    storylines.value = storylines.value.filter(s => s.id !== id)
+    if (currentId.value === id) {
+      currentId.value = storylines.value.length > 0 ? storylines.value[0].id : null
+    }
+  } catch (e) {
+    error.value = e.message
+    throw e
   }
-  save()
 }
 
 // ===== 事件相关操作 =====
 
-// 生成事件 id：用时间戳，避免和故事线的自增 id 冲突
-function makeEventId() {
-  return Date.now() + Math.floor(Math.random() * 1000)
-}
-
-// 给某条故事线添加事件
-function addEvent(storylineId, eventData) {
-  const item = getById(storylineId)
-  if (!item) return
-  const event = {
-    id: makeEventId(),
-    date: eventData.date || '',
-    title: eventData.title,
-    description: eventData.description || '',
-    people: eventData.people || [],   // ['A'] / ['B'] / ['A','B']
-    tags: eventData.tags || [],
-    imageUrl: eventData.imageUrl || '',
+/** 添加事件：后端返回新事件，本地拿到后补一个临时 id 的占位，再整体刷新这条故事线 */
+async function addEvent(storylineId, eventData) {
+  error.value = ''
+  try {
+    const data = eventToApi(eventData)
+    await eventApi.create(storylineId, data)
+    // 重新拉这条故事线的详情，拿到带正确 id 和排序的事件列表
+    const fresh = await storylineApi.detail(storylineId)
+    const index = storylines.value.findIndex(s => s.id === storylineId)
+    if (index !== -1) {
+      storylines.value[index] = storylineFromApi(fresh)
+    }
+  } catch (e) {
+    error.value = e.message
+    throw e
   }
-  item.events.push(event)
-  // 按日期排序，保证时间轴顺序正确
-  item.events.sort((a, b) => a.date.localeCompare(b.date))
-  save()
-  return event
 }
 
-// 更新某条故事线里的某个事件
-function updateEvent(storylineId, eventId, eventData) {
-  const item = getById(storylineId)
-  if (!item) return
-  const event = item.events.find(e => e.id === eventId)
-  if (!event) return
-  Object.assign(event, eventData)      // 把新数据合并进旧事件
-  item.events.sort((a, b) => a.date.localeCompare(b.date))
-  save()
+/** 更新事件 */
+async function updateEvent(storylineId, eventId, eventData) {
+  error.value = ''
+  try {
+    const data = eventToApi(eventData)
+    await eventApi.update(eventId, data)
+    const fresh = await storylineApi.detail(storylineId)
+    const index = storylines.value.findIndex(s => s.id === storylineId)
+    if (index !== -1) {
+      storylines.value[index] = storylineFromApi(fresh)
+    }
+  } catch (e) {
+    error.value = e.message
+    throw e
+  }
 }
 
-// 删除某条故事线里的某个事件
-function removeEvent(storylineId, eventId) {
-  const item = getById(storylineId)
-  if (!item) return
-  item.events = item.events.filter(e => e.id !== eventId)
-  save()
+/** 删除事件 */
+async function removeEvent(storylineId, eventId) {
+  error.value = ''
+  try {
+    await eventApi.remove(eventId)
+    const fresh = await storylineApi.detail(storylineId)
+    const index = storylines.value.findIndex(s => s.id === storylineId)
+    if (index !== -1) {
+      storylines.value[index] = storylineFromApi(fresh)
+    }
+  } catch (e) {
+    error.value = e.message
+    throw e
+  }
 }
 
-// 把这个仓库里的东西暴露出去，给组件用
 export function useStorylines() {
   return {
     storylines,
     currentId,
+    loading,
+    error,
     current,
     load,
     create,

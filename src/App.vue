@@ -1,98 +1,110 @@
 <template>
-  <div class="app">
-    <header>
-      <h1>故事线可视化平台</h1>
-      <p class="subtitle">把散落的故事线索，变成一眼看清的时间轴</p>
+  <div class="app-shell">
+    <!-- 顶部导航：所有页面共用 -->
+    <header class="topbar">
+      <div class="topbar-inner">
+        <router-link to="/" class="brand">
+          <span class="brand-mark">◈</span> 故事线
+        </router-link>
+        <nav class="nav">
+          <router-link to="/">发现</router-link>
+          <router-link v-if="auth.isLoggedIn.value" to="/workspace">我的工作台</router-link>
+        </nav>
+        <div class="account">
+          <template v-if="auth.isLoggedIn.value">
+            <span class="username">{{ auth.username.value || '我' }}</span>
+            <button class="logout-mini" @click="handleLogout">退出</button>
+          </template>
+          <router-link v-else to="/login" class="login-link">登录 / 注册</router-link>
+        </div>
+      </div>
     </header>
 
-    <div class="layout">
-      <!-- 左栏：故事线管理 -->
-      <aside class="sidebar">
-        <StorylineManager />
-      </aside>
-
-      <!-- 右栏：上方时间轴展示，下方事件编辑 -->
-      <main class="content">
-        <template v-if="currentStoryline">
-          <Timeline :storyline="currentStoryline" />
-          <EventEditor :storyline="currentStoryline" />
-        </template>
-        <template v-else>
-          <div class="placeholder">
-            <p>← 先在左边创建或选择一条故事线</p>
-          </div>
-        </template>
-      </main>
-    </div>
+    <!-- 页面内容：由路由决定显示哪个页面 -->
+    <router-view />
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
-import StorylineManager from './components/StorylineManager.vue'
-import Timeline from './components/Timeline.vue'
-import EventEditor from './components/EventEditor.vue'
-import { useStorylines } from './composables/useStorylines.js'
+import { useRouter } from 'vue-router'
+import { useAuth } from './stores/auth.js'
 
-const store = useStorylines()
+const router = useRouter()
+const auth = useAuth()
 
-// 当前选中的故事线（计算属性，切换时自动更新）
-const currentStoryline = computed(() => store.current())
-
-// 页面加载时从本地存储读数据
-store.load()
+function handleLogout() {
+  auth.logout()
+  // 如果当前在需要登录的页面，退出后回首页
+  if (router.currentRoute.value.meta.requiresAuth) {
+    router.push('/')
+  }
+}
 </script>
 
-<style scoped>
-.app {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 24px 20px;
-  font-family: system-ui, sans-serif;
+<style>
+/* 全局样式（不加 scoped，作用于所有页面） */
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: #f7f7f9;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
   color: #333;
 }
-header {
-  margin-bottom: 24px;
+a { color: inherit; }
+</style>
+
+<style scoped>
+.app-shell { min-height: 100vh; }
+.topbar {
+  background: white;
+  border-bottom: 1px solid #eaeaea;
+  position: sticky;
+  top: 0;
+  z-index: 50;
 }
-h1 {
-  font-size: 24px;
-  font-weight: 500;
-  margin-bottom: 6px;
-}
-.subtitle {
-  color: #888;
-  font-size: 14px;
-  margin: 0;
-}
-.layout {
-  display: grid;
-  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
-  gap: 24px;
-  align-items: start;
-}
-.sidebar {
-  background: #fafafa;
-  border-radius: 8px;
-  padding: 16px;
-  min-width: 0;
-}
-.content {
-  min-height: 300px;
-  min-width: 0;
-}
-.placeholder {
+.topbar-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+  height: 58px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  height: 300px;
-  color: #bbb;
-  font-size: 14px;
-  background: #fafafa;
-  border-radius: 8px;
+  gap: 28px;
 }
-@media (max-width: 800px) {
-  .layout {
-    grid-template-columns: 1fr;
-  }
+.brand {
+  font-size: 17px;
+  font-weight: 500;
+  color: #5b468f;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.brand-mark { color: #7c5cbf; margin-right: 2px; }
+.nav { display: flex; gap: 20px; flex: 1; }
+.nav a {
+  font-size: 14px;
+  color: #666;
+  text-decoration: none;
+  padding: 6px 0;
+}
+.nav a:hover, .nav a.router-link-active { color: #7c5cbf; }
+.account { display: flex; align-items: center; gap: 10px; }
+.username { font-size: 13px; color: #666; }
+.logout-mini {
+  border: 1px solid #ddd;
+  background: white;
+  color: #888;
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.logout-mini:hover { border-color: #7c5cbf; color: #7c5cbf; }
+.login-link {
+  font-size: 13px;
+  color: #7c5cbf;
+  text-decoration: none;
+  border: 1px solid #d9c9f0;
+  border-radius: 6px;
+  padding: 6px 12px;
 }
 </style>

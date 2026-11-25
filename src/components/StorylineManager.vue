@@ -30,6 +30,9 @@
               <input v-model="editPersonB" placeholder="主角 B" />
             </div>
             <input v-model="editDescription" placeholder="简介" @keyup.enter="handleUpdate(item.id)" @keyup.esc="cancelEdit" />
+            <label class="public-toggle">
+              <input type="checkbox" v-model="editPublic" /> 公开（别人可在首页看到）
+            </label>
             <div class="edit-actions">
               <button @click.stop="handleUpdate(item.id)">保存</button>
               <button class="ghost" @click.stop="cancelEdit">取消</button>
@@ -40,11 +43,14 @@
           <div class="item-info">
             <span class="title">{{ item.title }}</span>
             <span class="people" v-if="item.personA || item.personB">{{ item.personA || 'A' }} × {{ item.personB || 'B' }}</span>
-            <span class="count">{{ item.events.length }} 个事件</span>
+            <span class="count">
+              {{ item.events.length }} 个事件
+              <span v-if="item.isPublic" class="public-badge">公开</span>
+            </span>
           </div>
           <div class="actions">
             <button @click.stop="startEdit(item)">改</button>
-            <button class="danger" @click.stop="store.remove(item.id)">删</button>
+            <button class="danger" @click.stop="handleRemove(item.id)">删</button>
           </div>
         </template>
       </li>
@@ -70,18 +76,23 @@ const editTitle = ref('')
 const editDescription = ref('')
 const editPersonA = ref('')
 const editPersonB = ref('')
+const editPublic = ref(false)
 
-function handleCreate() {
+async function handleCreate() {
   if (!newTitle.value.trim()) {
     error.value = '标题不能为空'
     return
   }
-  store.create(newTitle.value.trim(), newDescription.value.trim(), newPersonA.value.trim(), newPersonB.value.trim())
-  newTitle.value = ''
-  newDescription.value = ''
-  newPersonA.value = ''
-  newPersonB.value = ''
-  error.value = ''
+  try {
+    await store.create(newTitle.value.trim(), newDescription.value.trim(), newPersonA.value.trim(), newPersonB.value.trim())
+    newTitle.value = ''
+    newDescription.value = ''
+    newPersonA.value = ''
+    newPersonB.value = ''
+    error.value = ''
+  } catch (e) {
+    error.value = e.message
+  }
 }
 
 function startEdit(item) {
@@ -90,12 +101,33 @@ function startEdit(item) {
   editDescription.value = item.description
   editPersonA.value = item.personA || ''
   editPersonB.value = item.personB || ''
+  editPublic.value = !!item.isPublic
 }
 
-function handleUpdate(id) {
+async function handleUpdate(id) {
   if (!editTitle.value.trim()) return
-  store.update(id, editTitle.value.trim(), editDescription.value.trim(), editPersonA.value.trim(), editPersonB.value.trim())
-  editingId.value = null
+  try {
+    // V2：update 传对象，包含公开状态（字段适配由 API 层负责）
+    await store.update(id, {
+      title: editTitle.value.trim(),
+      description: editDescription.value.trim(),
+      personA: editPersonA.value.trim(),
+      personB: editPersonB.value.trim(),
+      isPublic: editPublic.value,
+    })
+    editingId.value = null
+  } catch (e) {
+    error.value = e.message
+  }
+}
+
+async function handleRemove(id) {
+  if (!confirm('确定删除这条故事线吗？它的所有事件也会一起删除。')) return
+  try {
+    await store.remove(id)
+  } catch (e) {
+    error.value = e.message
+  }
 }
 
 function cancelEdit() {
@@ -214,4 +246,22 @@ button.danger {
   color: #999;
   font-size: 13px;
 }
+.public-badge {
+  display: inline-block;
+  font-size: 10px;
+  color: #7c5cbf;
+  background: #f0eafb;
+  border-radius: 4px;
+  padding: 1px 5px;
+  margin-left: 4px;
+}
+.public-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #666;
+  cursor: pointer;
+}
+.public-toggle input { width: auto; }
 </style>

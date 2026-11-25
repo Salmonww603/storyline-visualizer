@@ -128,7 +128,7 @@ function handleImage(event) {
   const reader = new FileReader()
   reader.onload = (e) => {
     form.imageUrl = e.target.result
-    imageHint.value = '图片已加载（本地存储，换设备不会保留）'
+    imageHint.value = '图片已加载（会存到服务器，换设备也能看到）'
   }
   reader.readAsDataURL(file)
 }
@@ -146,7 +146,7 @@ function startEdit(event) {
 }
 
 // 保存（新建或更新）
-function handleSave() {
+async function handleSave() {
   if (!form.title.trim()) {
     error.value = '事件标题不能为空'
     return
@@ -159,18 +159,26 @@ function handleSave() {
     tags: tagsInput.value.split(/[,，]/).map(t => t.trim()).filter(Boolean),
     imageUrl: form.imageUrl,
   }
-  if (editingId.value) {
-    store.updateEvent(props.storyline.id, editingId.value, data)
-  } else {
-    store.addEvent(props.storyline.id, data)
+  try {
+    if (editingId.value) {
+      await store.updateEvent(props.storyline.id, editingId.value, data)
+    } else {
+      await store.addEvent(props.storyline.id, data)
+    }
+    resetForm()
+  } catch (e) {
+    error.value = e.message
   }
-  resetForm()
 }
 
 // 删除事件
-function handleRemove(eventId) {
+async function handleRemove(eventId) {
   if (confirm('确定删除这个事件吗？')) {
-    store.removeEvent(props.storyline.id, eventId)
+    try {
+      await store.removeEvent(props.storyline.id, eventId)
+    } catch (e) {
+      error.value = e.message
+    }
   }
 }
 
