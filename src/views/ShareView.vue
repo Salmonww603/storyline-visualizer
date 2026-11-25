@@ -110,9 +110,9 @@ const copied = ref(false)
 
 onMounted(async () => {
   try {
-    // 用详情接口读数据。后端 detail 接口目前不强制公开校验，
-    // 但分享是"给别人看"的场景，这里前端额外判断：
-    // 私有故事线只有本人（token 对应用户）能看——后端返回的 owner_id 用于比对。
+    // 用详情接口读数据。服务端已强制校验权限：
+    // 公开内容谁都能读；私密的会直接返回 403（后端 detail 接口拦住）。
+    // 这里保留 is_public 判断作为双保险——即使将来后端改动，也不会误展示私密内容。
     const data = await storylineApi.detail(route.params.id)
     if (!data.is_public) {
       error.value = '这条故事线未公开，无法分享。'
@@ -120,6 +120,7 @@ onMounted(async () => {
     }
     storyline.value = storylineFromApi(data)
   } catch (e) {
+    // 403 = 未公开且不是本人；404 = 链接失效。后端错误信息已足够友好，直接展示。
     error.value = e.message || '加载失败，链接可能已失效。'
   } finally {
     loading.value = false

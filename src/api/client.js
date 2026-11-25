@@ -105,7 +105,9 @@ export const authApi = {
 export const storylineApi = {
   mine: () => request('/api/storylines/mine', { auth: true }),
   discover: () => request('/api/storylines/discover'),
-  detail: (id) => request(`/api/storylines/${id}`),
+  // 带 token：登录用户能读自己私有的故事线；匿名访客 token 为空也不影响读公开的。
+  // 后端会据此判断：公开谁都能看，私密的只有 owner 能看（403）。
+  detail: (id, auth = true) => request(`/api/storylines/${id}`, { auth }),
   create: (data) => request('/api/storylines', { method: 'POST', body: data, auth: true }),
   update: (id, data) => request(`/api/storylines/${id}`, { method: 'PUT', body: data, auth: true }),
   remove: (id) => request(`/api/storylines/${id}`, { method: 'DELETE', auth: true }),

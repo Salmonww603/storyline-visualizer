@@ -12,7 +12,7 @@ from models import User, Storyline, Event
 from schemas import (
     StorylineCreate, StorylineUpdate, StorylineOut, StorylineSummary,
 )
-from auth import get_current_user
+from auth import get_current_user, get_optional_user
 
 router = APIRouter(prefix="/api/storylines", tags=["故事线"])
 
@@ -85,15 +85,26 @@ def discover(db: Session = Depends(get_db)):
 
 
 @router.get("/{storyline_id}", response_model=StorylineOut)
-def get_storyline(storyline_id: int, db: Session = Depends(get_db)):
+def get_storyline(
+    storyline_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_optional_user),
+):
     """
     单条详情（含所有事件）。
-    公开的任何人可看；私密的只能是本人——这里先不强制，前端控制入口，
-    后续可加当前用户校验（面试可讲这个取舍）。
+    权限规则（服务端强制，不能只靠前端）：
+    - 公开：任何人（含匿名访客）可读
+    - 私密：只有作者本人可读，其他人 403
+
+    这里用可选认证而不是强制登录：公开的分享页要给没登录的朋友看，
+    所以不能一上来就要求 token；但私密内容必须校验身份。
     """
     s = db.query(Storyline).filter(Storyline.id == storyline_id).first()
     if not s:
         raise HTTPException(status_code=404, detail="故事线不存在")
+    # is_public=False 且（没登录 或 登录的不是作者）→ 拒绝
+    if not s.is_public and (current_user is None or s.owner_id != current_user.id):
+        raise HTTPException(status_code=403, detail="这条故事线未公开，只有作者本人可以查看")
     return _to_out(s)
 
 
