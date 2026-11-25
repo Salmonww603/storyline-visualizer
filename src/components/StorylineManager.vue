@@ -49,6 +49,12 @@
             </span>
           </div>
           <div class="actions">
+            <button
+              class="publish-btn"
+              :class="{ 'is-public': item.isPublic }"
+              :title="item.isPublic ? '点击转为私密（首页将不再显示）' : '点击公开到首页（别人可见）'"
+              @click.stop="togglePublic(item)"
+            >{{ item.isPublic ? '已公开' : '公开' }}</button>
             <button @click.stop="startEdit(item)">改</button>
             <button class="danger" @click.stop="handleRemove(item.id)">删</button>
           </div>
@@ -116,6 +122,23 @@ async function handleUpdate(id) {
       isPublic: editPublic.value,
     })
     editingId.value = null
+  } catch (e) {
+    error.value = e.message
+  }
+}
+
+// 一键公开/转私密：只改 isPublic，其余字段原样带回
+// （update 是整体覆盖语义，所以要把现有字段都传过去，不能只传 isPublic）
+async function togglePublic(item) {
+  error.value = ''
+  try {
+    await store.update(item.id, {
+      title: item.title,
+      description: item.description,
+      personA: item.personA || '',
+      personB: item.personB || '',
+      isPublic: !item.isPublic,
+    })
   } catch (e) {
     error.value = e.message
   }
@@ -190,6 +213,15 @@ button.ghost {
 button.danger {
   background: #f56c6c;
   border-color: #f56c6c;
+}
+button.publish-btn {
+  background: white;
+  color: #7c5cbf;
+  border-color: #7c5cbf;
+}
+button.publish-btn.is-public {
+  background: #7c5cbf;
+  color: white;
 }
 .error {
   color: #f56c6c;
