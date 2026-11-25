@@ -1,12 +1,17 @@
 <template>
-  <div class="timeline-wrap">
+  <div class="timeline-wrap" ref="captureRef">
     <div class="timeline-header">
-      <h2>{{ storyline.title }} · 时间轴</h2>
-      <span class="count">{{ countText }}</span>
+      <div class="header-title">
+        <h2>{{ storyline.title }} · 时间轴</h2>
+        <span class="count">{{ countText }}</span>
+      </div>
+      <button class="export-btn" data-html2canvas-ignore @click="exportImage" :disabled="exporting">
+        {{ exporting ? '生成中…' : '⬇ 导出分享图' }}
+      </button>
     </div>
 
     <!-- 按人物筛选：切换时 :key 会让时间轴重新播放动画 -->
-    <div v-if="storyline.events.length > 0" class="filter-bar">
+    <div v-if="storyline.events.length > 0" class="filter-bar" data-html2canvas-ignore>
       <button
         v-for="opt in filterOptions"
         :key="opt.value"
@@ -55,7 +60,7 @@
     </div>
 
     <!-- 事件详情弹窗 -->
-    <div v-if="detail" class="modal-mask" @click.self="closeDetail">
+    <div v-if="detail" class="modal-mask" data-html2canvas-ignore @click.self="closeDetail">
       <div class="modal">
         <button class="modal-close" @click="closeDetail">×</button>
         <div class="modal-date">{{ detail.date || '未设日期' }}</div>
@@ -76,7 +81,8 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
+import html2canvas from 'html2canvas'
 
 const props = defineProps({
   storyline: {
@@ -86,6 +92,39 @@ const props = defineProps({
 })
 
 const detail = ref(null)
+
+// 导出相关：captureRef 指向要截图的区域，exporting 控制按钮 loading 态
+const captureRef = ref(null)
+const exporting = ref(false)
+
+// 导出分享图：把时间轴 DOM 渲染成 PNG 下载
+async function exportImage() {
+  if (exporting.value || !captureRef.value) return
+  exporting.value = true
+  try {
+    // 关键：加 .exporting 冻结所有入场动画到最终态，否则截到的是半透明/未画完的线
+    captureRef.value.classList.add('exporting')
+    await nextTick() // 等 class 对应的样式生效
+
+    const canvas = await html2canvas(captureRef.value, {
+      backgroundColor: '#f7f5fb', // 和页面背景一致
+      scale: 2, // 2 倍清晰度，适合分享
+      useCORS: true, // 允许跨域图片（用户填的外链图）
+    })
+
+    // 生成图片并触发下载
+    const link = document.createElement('a')
+    link.download = `${props.storyline.title || '故事线'}-时间轴.png`
+    link.href = canvas.toDataURL('image/png')
+    link.click()
+  } catch (e) {
+    console.error('导出失败', e)
+    alert('导出失败，可能是图片跨域导致，请试试本地上传的图片。')
+  } finally {
+    captureRef.value?.classList.remove('exporting')
+    exporting.value = false
+  }
+}
 
 // 当前筛选：'all' / 'A' / 'B'（存代号，不存真名——改名不影响逻辑）
 const filter = ref('all')
@@ -147,14 +186,45 @@ function closeDetail() {
 }
 .timeline-header {
   display: flex;
-  align-items: baseline;
+  align-items: center;
+  justify-content: space-between;
   gap: 10px;
   margin-bottom: 20px;
+}
+.header-title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
 }
 h2 {
   font-size: 17px;
   font-weight: 500;
   margin: 0;
+}
+.export-btn {
+  flex-shrink: 0;
+  border: 1px solid #d9c9f0;
+  background: #f3ecfc;
+  color: #7c5cbf;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.export-btn:hover { background: #e8daf8; }
+.export-btn:disabled { opacity: 0.6; cursor: wait; }
+
+/* 导出时冻结所有动画到最终态：节点不透明、无位移，主线画完 */
+.exporting .node {
+  animation: none;
+  opacity: 1;
+  transform: none;
+}
+.exporting .track-line {
+  animation: none;
+  stroke-dashoffset: 0;
 }
 .count {
   font-size: 12px;
