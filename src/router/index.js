@@ -4,7 +4,8 @@
  *   /            首页/发现页（看别人的公开故事线）
  *   /login       登录注册
  *   /workspace   我的工作台（V1 的功能搬过来，需要登录）
- *   /detail/:id  别人的故事线只读详情
+ *   /detail/:id  别人的故事线只读详情（站内，带导航）
+ *   /share/:id   沉浸式分享页（全屏、无导航，给别人看的）
  */
 import { createRouter, createWebHistory } from 'vue-router'
 import { getToken } from '../api/client.js'
@@ -12,6 +13,7 @@ import HomeView from '../views/HomeView.vue'
 import LoginView from '../views/LoginView.vue'
 import WorkspaceView from '../views/WorkspaceView.vue'
 import DetailView from '../views/DetailView.vue'
+import ShareView from '../views/ShareView.vue'
 
 const routes = [
   { path: '/', name: 'home', component: HomeView },
@@ -23,6 +25,8 @@ const routes = [
     meta: { requiresAuth: true },  // 需要登录才能进
   },
   { path: '/detail/:id', name: 'detail', component: DetailView },
+  // 分享页：immersive=true 让 App.vue 隐藏顶部导航，全屏沉浸展示
+  { path: '/share/:id', name: 'share', component: ShareView, meta: { immersive: true } },
 ]
 
 const router = createRouter({

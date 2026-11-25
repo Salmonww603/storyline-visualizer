@@ -5,9 +5,14 @@
         <h2>{{ storyline.title }} · 时间轴</h2>
         <span class="count">{{ countText }}</span>
       </div>
-      <button class="export-btn" data-html2canvas-ignore @click="exportImage" :disabled="exporting">
-        {{ exporting ? '生成中…' : '⬇ 导出分享图' }}
-      </button>
+      <div class="header-actions" data-html2canvas-ignore>
+        <button class="share-link-btn" @click="copyShareLink" :title="storyline.isPublic ? '复制分享链接发给朋友' : '先把故事线设为公开，别人才能打开'">
+          {{ linkCopied ? '✓ 已复制' : '⬗ 分享链接' }}
+        </button>
+        <button class="export-btn" @click="exportImage" :disabled="exporting">
+          {{ exporting ? '生成中…' : '⬇ 图片' }}
+        </button>
+      </div>
     </div>
 
     <!-- 按人物筛选：切换时 :key 会让时间轴重新播放动画 -->
@@ -96,6 +101,30 @@ const detail = ref(null)
 // 导出相关：captureRef 指向要截图的区域，exporting 控制按钮 loading 态
 const captureRef = ref(null)
 const exporting = ref(false)
+
+// 分享链接相关
+const linkCopied = ref(false)
+
+// 复制沉浸式分享页链接。未公开时提示先公开（否则别人打开会被拒）。
+async function copyShareLink() {
+  if (!props.storyline.isPublic) {
+    alert('请先把这条故事线设为「公开」，别人才能通过链接查看。')
+    return
+  }
+  const url = `${window.location.origin}/share/${props.storyline.id}`
+  try {
+    await navigator.clipboard.writeText(url)
+  } catch {
+    const input = document.createElement('textarea')
+    input.value = url
+    document.body.appendChild(input)
+    input.select()
+    document.execCommand('copy')
+    document.body.removeChild(input)
+  }
+  linkCopied.value = true
+  setTimeout(() => { linkCopied.value = false }, 2000)
+}
 
 // 导出分享图：把时间轴 DOM 渲染成 PNG 下载
 async function exportImage() {
@@ -202,8 +231,23 @@ h2 {
   font-weight: 500;
   margin: 0;
 }
-.export-btn {
+.header-actions {
+  display: flex;
+  gap: 8px;
   flex-shrink: 0;
+}
+.share-link-btn {
+  border: none;
+  background: #7c5cbf;
+  color: white;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.share-link-btn:hover { background: #6a4cad; }
+.export-btn {
   border: 1px solid #d9c9f0;
   background: #f3ecfc;
   color: #7c5cbf;

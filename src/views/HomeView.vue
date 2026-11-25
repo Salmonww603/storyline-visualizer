@@ -14,7 +14,7 @@
       <ul class="features">
         <li><span class="feature-title">按时间看</span><span class="feature-desc">事件自动排成时间轴，带动画</span></li>
         <li><span class="feature-title">按人物筛</span><span class="feature-desc">只看某一人的故事线</span></li>
-        <li><span class="feature-title">分享出去</span><span class="feature-desc">公开作品，导出图片</span></li>
+        <li><span class="feature-title">分享出去</span><span class="feature-desc">公开作品，一条链接沉浸展示</span></li>
       </ul>
     </section>
 
@@ -33,7 +33,7 @@
         <router-link
           v-for="item in items"
           :key="item.id"
-          :to="`/detail/${item.id}`"
+          :to="`/share/${item.id}`"
           class="card"
         >
           <div class="card-cover">
@@ -44,7 +44,7 @@
             <p class="card-desc">{{ item.description || '（暂无简介）' }}</p>
             <div class="card-meta">
               <span>{{ item.eventCount }} 个事件</span>
-              <span class="view-hint">查看时间轴 →</span>
+              <span class="view-hint">沉浸查看 →</span>
             </div>
           </div>
         </router-link>

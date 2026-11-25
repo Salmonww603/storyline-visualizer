@@ -1,7 +1,7 @@
 <template>
-  <div class="app-shell">
-    <!-- 顶部导航：所有页面共用 -->
-    <header class="topbar">
+  <div class="app-shell" :class="{ 'no-topbar': isImmersive }">
+    <!-- 顶部导航：所有页面共用（沉浸式分享页隐藏） -->
+    <header v-if="!isImmersive" class="topbar">
       <div class="topbar-inner">
         <router-link to="/" class="brand">
           <span class="brand-mark">◈</span> 故事线
@@ -26,11 +26,16 @@
 </template>
 
 <script setup>
-import { useRouter } from 'vue-router'
+import { computed } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuth } from './stores/auth.js'
 
 const router = useRouter()
+const route = useRoute()
 const auth = useAuth()
+
+// 沉浸式页面（如分享页）隐藏顶部导航，让展示全屏无干扰
+const isImmersive = computed(() => !!route.meta.immersive)
 
 function handleLogout() {
   auth.logout()
