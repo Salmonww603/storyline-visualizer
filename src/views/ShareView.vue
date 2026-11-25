@@ -5,6 +5,9 @@
     <div class="bg-glow glow-a" aria-hidden="true"></div>
     <div class="bg-glow glow-b" aria-hidden="true"></div>
 
+    <!-- 返回首页：沉浸式页面没有全局导航，这里单独放一个固定入口，滚动时始终可见 -->
+    <router-link to="/" class="back-home">← 返回首页</router-link>
+
     <!-- 加载 / 错误态 -->
     <div v-if="loading" class="state">正在展开这段故事…</div>
     <div v-else-if="error" class="state error">
@@ -191,6 +194,28 @@ async function copyLink() {
   color: #f0ecf8;
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
   padding: 0 20px 80px;
+}
+
+/* 返回首页：左上角固定，玻璃质感，在深色背景上清晰可见 */
+.back-home {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  z-index: 100;
+  font-size: 13px;
+  color: #d9c7f5;
+  text-decoration: none;
+  padding: 8px 16px;
+  border: 1px solid rgba(217,199,245,.35);
+  border-radius: 20px;
+  background: rgba(30,22,55,.55);
+  backdrop-filter: blur(8px);
+  transition: all .25s;
+}
+.back-home:hover {
+  color: #fff;
+  border-color: rgba(217,199,245,.7);
+  background: rgba(60,45,100,.75);
 }
 
 /* 背景：星点用径向渐变平铺，光晕用模糊圆 */
