@@ -2,3 +2,11 @@ node_modules
 dist
 .DS_Store
 *.local
+
+# Python 后端
+__pycache__/
+*.py[cod]
+*.egg-info/
+server/.env
+venv/
+
