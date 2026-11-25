@@ -2,14 +2,31 @@
   <div class="timeline-wrap">
     <div class="timeline-header">
       <h2>{{ storyline.title }} · 时间轴</h2>
-      <span class="count">{{ storyline.events.length }} 个事件</span>
+      <span class="count">{{ countText }}</span>
+    </div>
+
+    <!-- 按人物筛选：切换时 :key 会让时间轴重新播放动画 -->
+    <div v-if="storyline.events.length > 0" class="filter-bar">
+      <button
+        v-for="opt in filterOptions"
+        :key="opt.value"
+        class="filter-btn"
+        :class="{ active: filter === opt.value }"
+        @click="filter = opt.value"
+      >
+        {{ opt.label }}
+      </button>
     </div>
 
     <div v-if="storyline.events.length === 0" class="empty">
       还没有事件，添加事件后这里会出现时间轴。
     </div>
 
-    <div v-else class="timeline" ref="timelineEl">
+    <div v-else-if="filteredEvents.length === 0" class="empty">
+      这条筛选下还没有事件。
+    </div>
+
+    <div v-else class="timeline" :key="filter" ref="timelineEl">
       <!-- SVG 主线：描边动画画出来 -->
       <svg class="track" preserveAspectRatio="none">
         <line x1="0" y1="0" x2="0" y2="100%" class="track-line" />
@@ -17,7 +34,7 @@
 
       <!-- 事件节点：逐个淡入 -->
       <div
-        v-for="(event, index) in storyline.events"
+        v-for="(event, index) in filteredEvents"
         :key="event.id"
         class="node"
         :style="{ animationDelay: (index * 0.12) + 's' }"
@@ -59,7 +76,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed, watch } from 'vue'
 
 const props = defineProps({
   storyline: {
@@ -69,6 +86,36 @@ const props = defineProps({
 })
 
 const detail = ref(null)
+
+// 当前筛选：'all' / 'A' / 'B'（存代号，不存真名——改名不影响逻辑）
+const filter = ref('all')
+
+// 筛选按钮：显示真名，没填名字时用代号兜底
+const filterOptions = computed(() => [
+  { value: 'all', label: '全部' },
+  { value: 'A', label: `只看${personName('A')}` },
+  { value: 'B', label: `只看${personName('B')}` },
+])
+
+// 筛选后的事件：只看某人时，含此人的事件都显示（两人互动会同时出现在 A 和 B 视图）
+const filteredEvents = computed(() => {
+  if (filter.value === 'all') return props.storyline.events
+  return props.storyline.events.filter(event => event.people.includes(filter.value))
+})
+
+// 计数文案：筛选时显示「3 / 5 个事件」，让人知道筛掉了多少
+const countText = computed(() => {
+  const total = props.storyline.events.length
+  return filter.value === 'all'
+    ? `${total} 个事件`
+    : `${filteredEvents.value.length} / ${total} 个事件`
+})
+
+// 切换故事线时重置筛选并关掉弹窗，避免停留在上一条 CP 的筛选状态
+watch(() => props.storyline.id, () => {
+  filter.value = 'all'
+  detail.value = null
+})
 
 // 'A'/'B' 代号映射成真名（与 EventEditor 同一约定）
 function personName(code) {
@@ -112,6 +159,32 @@ h2 {
 .count {
   font-size: 12px;
   color: #999;
+}
+.filter-bar {
+  display: inline-flex;
+  gap: 3px;
+  background: #f0f0f0;
+  border-radius: 9px;
+  padding: 3px;
+  margin-bottom: 18px;
+}
+.filter-btn {
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 12px;
+  color: #777;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+}
+.filter-btn:hover {
+  color: #333;
+}
+.filter-btn.active {
+  background: white;
+  color: #7c5cbf;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
 }
 .empty {
   color: #999;
