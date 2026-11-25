@@ -6,7 +6,6 @@
  *   /workspace   我的工作台（V1 的功能搬过来，需要登录）
  *   /detail/:id  别人的故事线只读详情（站内，带导航）
  *   /share/:id   沉浸式分享页（全屏、无导航，给别人看的）
- *   /migrate     一次性工具：把 V1 localStorage 数据导入 MySQL
  */
 import { createRouter, createWebHistory } from 'vue-router'
 import { getToken } from '../api/client.js'
@@ -15,7 +14,6 @@ import LoginView from '../views/LoginView.vue'
 import WorkspaceView from '../views/WorkspaceView.vue'
 import DetailView from '../views/DetailView.vue'
 import ShareView from '../views/ShareView.vue'
-import MigrateView from '../views/MigrateView.vue'
 
 const routes = [
   { path: '/', name: 'home', component: HomeView },
@@ -27,8 +25,6 @@ const routes = [
     meta: { requiresAuth: true },  // 需要登录才能进
   },
   { path: '/detail/:id', name: 'detail', component: DetailView },
-  // V1 数据迁移工具：一次性页面，导入完可以删掉路由和组件
-  { path: '/migrate', name: 'migrate', component: MigrateView },
   // 分享页：immersive=true 让 App.vue 隐藏顶部导航，全屏沉浸展示
   { path: '/share/:id', name: 'share', component: ShareView, meta: { immersive: true } },
 ]
