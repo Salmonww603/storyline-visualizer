@@ -27,12 +27,12 @@
 | 部署 | FastAPI 单端口同时托管 API 与前端静态产物，SPA 路由回退处理刷新 |
 | 安全 | bcrypt 密码哈希、环境变量隔离密钥、服务端 owner 校验与公开性校验 |
 
-## 关键设计决策（面试可讲）
+## 关键设计决策
 
-1. **本地 MySQL、线上 SQLite 的数据层适配**：发布沙箱不支持 MySQL，于是把数据访问收敛到 SQLAlchemy ORM，本地与线上只换连接串，业务代码零改动。
-2. **可选认证解决"一个详情接口两种身份"**：公开分享页匿名可读，工作台也能读自己私有内容——服务端用可选认证依赖（`get_optional_user`）+ 403，而不是粗暴要求"必须登录"。
-3. **单端口部署 + SPA 回退**：线上只有一个 HTTP 端口，由 FastAPI 托管 `dist/`；刷新 `/share/2` 这类前端路由时回退到 `index.html`，避免 404。
-4. **图片存储演进**：图片以 base64 存入 `LONGTEXT`，从 V1 的 localStorage 迁移到后端时复用字段适配器，保证 camelCase ↔ snake_case 转换一致。
+1. **本地 MySQL、线上 SQLite 的数据层适配**：部署环境不支持 MySQL，因此把数据访问收敛到 SQLAlchemy ORM，本地与线上只切换连接串，业务代码无需改动。
+2. **可选认证兼顾两种访问身份**：公开分享页允许匿名访问，工作台则需要读取用户自己的私有内容。服务端通过可选认证依赖（`get_optional_user`）配合 403 响应区分处理，而不是对所有请求统一要求登录。
+3. **单端口部署 + SPA 回退**：线上仅提供一个 HTTP 端口，由 FastAPI 托管 `dist/`；刷新 `/share/2` 这类前端路由时回退到 `index.html`，避免 404。
+4. **图片存储演进**：图片以 base64 存入 `LONGTEXT`；从 V1 的 localStorage 迁移到后端时复用字段适配器，保证 camelCase ↔ snake_case 转换一致。
 
 ## 本地启动
 
@@ -76,6 +76,6 @@ server/            本地开发后端（MySQL）
 deploy/            线上部署后端（SQLite）+ 前端静态产物
 ```
 
-## 开发历程（git 提交可追溯）
+## 开发历程
 
 V1 localStorage 单机版 → V2 接入 FastAPI + MySQL 与账号系统 → 权限与公开校验 → 分享页改版为沉浸式页面 → V1 数据迁移入 MySQL → SQLite 适配并上线。完整提交历史见 `git log`。
