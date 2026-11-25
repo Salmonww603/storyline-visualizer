@@ -10,3 +10,8 @@ __pycache__/
 server/.env
 venv/
 
+# 数据库文件含真实数据/密码哈希，不上传 GitHub
+*.db
+*.sqlite
+*.sqlite3
+
