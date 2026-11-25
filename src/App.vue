@@ -11,9 +11,10 @@
         <StorylineManager />
       </aside>
 
-      <!-- 右栏：选中故事线的事件编辑 -->
+      <!-- 右栏：上方时间轴展示，下方事件编辑 -->
       <main class="content">
         <template v-if="currentStoryline">
+          <Timeline :storyline="currentStoryline" />
           <EventEditor :storyline="currentStoryline" />
         </template>
         <template v-else>
@@ -29,6 +30,7 @@
 <script setup>
 import { computed } from 'vue'
 import StorylineManager from './components/StorylineManager.vue'
+import Timeline from './components/Timeline.vue'
 import EventEditor from './components/EventEditor.vue'
 import { useStorylines } from './composables/useStorylines.js'
 
